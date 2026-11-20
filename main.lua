@@ -1,4 +1,4 @@
--- Steal An Card (Clash War GGPRO) mobile hub v4.0
+-- Steal An Card mobile hub v5.0
 -- ESP/radar experimental, no auto-collection or server bypass.
 -- Steal a Card Mobile Hub v3.0 - experimental client tools
 -- No Auto Steal or Auto Farm; object detection is heuristic.
@@ -14,7 +14,7 @@ gui.Name="SACMobileHubV3"
 gui.ResetOnSpawn=false
 gui.Parent=pg
 local frame=Instance.new("Frame",gui)
-frame.Size=UDim2.fromOffset(285,320)
+frame.Size=UDim2.fromOffset(285,365)
 frame.Position=UDim2.new(0,15,.24,0)
 frame.BackgroundColor3=Color3.fromRGB(24,27,38)
 frame.Active=true
@@ -25,11 +25,11 @@ local function make(kind,parent,props)
  x.Parent=parent
  return x
 end
-make("TextLabel",frame,{Text="STEAL AN CARD | HUB V4",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
+make("TextLabel",frame,{Text="STEAL AN CARD | HUB V5",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
 local mini=make("TextButton",frame,{Text="-",Size=UDim2.fromOffset(35,35),Position=UDim2.new(1,-40,0,5),BackgroundColor3=Color3.fromRGB(55,60,78),TextColor3=Color3.new(1,1,1),TextSize=20})
 local content=make("Frame",frame,{Size=UDim2.new(1,-20,1,-52),Position=UDim2.fromOffset(10,47),BackgroundTransparency=1})
 make("UIListLayout",content,{Padding=UDim.new(0,7),SortOrder=Enum.SortOrder.LayoutOrder})
-local enabled={players=false,cards=false,speed=false,radar=false}
+local enabled={players=false,cards=false,speed=false,radar=false,zones=false}
 local function toggle(name,key)
  local b=make("TextButton",content,{Text=name.." OFF",Size=UDim2.new(1,0,0,37),BackgroundColor3=Color3.fromRGB(53,58,76),TextColor3=Color3.new(1,1,1),TextSize=13,Font=Enum.Font.GothamMedium})
  Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
@@ -43,6 +43,7 @@ toggle("ESP Jogadores","players")
 toggle("ESP Packs (experimental)","cards")
 toggle("Speed local","speed")
 toggle("Radar de packs","radar")
+toggle("ESP Safe Zone (experimental)","zones")
 local speed=24
 local speedRow=make("Frame",content,{Size=UDim2.new(1,0,0,35),BackgroundTransparency=1})
 local minus=make("TextButton",speedRow,{Text="-",Size=UDim2.fromOffset(43,35),TextSize=20})
@@ -50,12 +51,12 @@ local plus=make("TextButton",speedRow,{Text="+",Position=UDim2.new(1,-43,0,0),Si
 local speedText=make("TextLabel",speedRow,{Text="Speed: 24",Position=UDim2.fromOffset(48,0),Size=UDim2.new(1,-96,1,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),TextSize=14})
 minus.MouseButton1Click:Connect(function() speed=math.max(16,speed-4);speedText.Text="Speed: "..speed end)
 plus.MouseButton1Click:Connect(function() speed=math.min(40,speed+4);speedText.Text="Speed: "..speed end)
-local status=make("TextLabel",content,{Text="Radar desativado",Size=UDim2.new(1,0,0,30),BackgroundTransparency=1,TextColor3=Color3.fromRGB(190,200,220),TextSize=11,TextWrapped=true})
+local status=make("TextLabel",content,{Text="Radar desativado",Size=UDim2.new(1,0,0,36),BackgroundTransparency=1,TextColor3=Color3.fromRGB(190,200,220),TextSize=11,TextWrapped=true})
 local minimized=false
 mini.MouseButton1Click:Connect(function()
  minimized=not minimized
  content.Visible=not minimized
- frame.Size=UDim2.fromOffset(285,minimized and 45 or 320)
+ frame.Size=UDim2.fromOffset(285,minimized and 45 or 365)
  mini.Text=minimized and "+" or "-"
 end)
 local drag=false
@@ -113,6 +114,8 @@ conn=RunService.Heartbeat:Connect(function(dt)
  end
  local count=0
  local distance=math.huge
+ local zoneCount=0
+ local zoneDistance=math.huge
  if enabled.cards or enabled.radar then
   local root=me.Character and me.Character:FindFirstChild("HumanoidRootPart")
   for _,obj in ipairs(workspace:GetDescendants()) do
@@ -124,6 +127,19 @@ conn=RunService.Heartbeat:Connect(function(dt)
     end
     local part=obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
     if root and part then distance=math.min(distance,(root.Position-part.Position).Magnitude) end
+   end
+  end
+ end
+ if enabled.zones then
+  local root=me.Character and me.Character:FindFirstChild("HumanoidRootPart")
+  for _,obj in ipairs(workspace:GetDescendants()) do
+   if (obj:IsA("BasePart") or obj:IsA("Model")) and
+     (obj.Name:lower():find("safe",1,true) or obj.Name:lower():find("zone",1,true)) then
+    zoneCount=zoneCount+1
+    local key="zone_"..tostring(obj)
+    keep[key]=true;mark(key,obj,Color3.fromRGB(70,230,120))
+    local part=obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
+    if root and part then zoneDistance=math.min(zoneDistance,(root.Position-part.Position).Magnitude) end
    end
   end
  end
@@ -139,5 +155,7 @@ conn=RunService.Heartbeat:Connect(function(dt)
    hum.WalkSpeed=previousSpeed;previousSpeed=nil
   end
  end
- status.Text=enabled.radar and ("Possiveis packs: "..count.." | Mais proxima: "..(distance<math.huge and math.floor(distance).." studs" or "nenhuma")) or "Radar desativado"
+ local packInfo=enabled.radar and ("Packs: "..count.." | "..(distance<math.huge and math.floor(distance).." studs" or "?")) or "Packs: OFF"
+ local zoneInfo=enabled.zones and (" | Zones: "..zoneCount.." | "..(zoneDistance<math.huge and math.floor(zoneDistance).." studs" or "?")) or ""
+ status.Text=packInfo..zoneInfo
 end)
