@@ -1,3 +1,5 @@
+-- Steal An Card (Clash War GGPRO) mobile hub v4.0
+-- ESP/radar experimental, no auto-collection or server bypass.
 -- Steal a Card Mobile Hub v3.0 - experimental client tools
 -- No Auto Steal or Auto Farm; object detection is heuristic.
 local Players=game:GetService("Players")
@@ -23,7 +25,7 @@ local function make(kind,parent,props)
  x.Parent=parent
  return x
 end
-make("TextLabel",frame,{Text="STEAL A CARD | MOBILE HUB",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
+make("TextLabel",frame,{Text="STEAL AN CARD | HUB V4",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
 local mini=make("TextButton",frame,{Text="-",Size=UDim2.fromOffset(35,35),Position=UDim2.new(1,-40,0,5),BackgroundColor3=Color3.fromRGB(55,60,78),TextColor3=Color3.new(1,1,1),TextSize=20})
 local content=make("Frame",frame,{Size=UDim2.new(1,-20,1,-52),Position=UDim2.fromOffset(10,47),BackgroundTransparency=1})
 make("UIListLayout",content,{Padding=UDim.new(0,7),SortOrder=Enum.SortOrder.LayoutOrder})
@@ -38,9 +40,9 @@ local function toggle(name,key)
  end)
 end
 toggle("ESP Jogadores","players")
-toggle("ESP Cartas (experimental)","cards")
+toggle("ESP Packs (experimental)","cards")
 toggle("Speed local","speed")
-toggle("Radar de cartas","radar")
+toggle("Radar de packs","radar")
 local speed=24
 local speedRow=make("Frame",content,{Size=UDim2.new(1,0,0,35),BackgroundTransparency=1})
 local minus=make("TextButton",speedRow,{Text="-",Size=UDim2.fromOffset(43,35),TextSize=20})
@@ -86,7 +88,7 @@ local function isCard(x)
  if not (x:IsA("Model") or x:IsA("BasePart")) then return false end
  if x:GetAttribute("IsCard")==true then return true end
  local n=x.Name:lower()
- return n:find("card",1,true) or n:find("carta",1,true) or n:find("deck",1,true) or n:find("baralho",1,true)
+ return n:find("pack",1,true) or n:find("booster",1,true) or n:find("card",1,true) or n:find("carta",1,true) or n:find("deck",1,true) or n:find("baralho",1,true)
 end
 local previousSpeed
 local elapsed=0
@@ -114,7 +116,7 @@ conn=RunService.Heartbeat:Connect(function(dt)
  if enabled.cards or enabled.radar then
   local root=me.Character and me.Character:FindFirstChild("HumanoidRootPart")
   for _,obj in ipairs(workspace:GetDescendants()) do
-   if isCard(obj) then
+   if isCard(obj) and not (me.Character and obj:IsDescendantOf(me.Character)) then
     count=count+1
     if enabled.cards then
      local key="card_"..tostring(obj)
@@ -137,5 +139,5 @@ conn=RunService.Heartbeat:Connect(function(dt)
    hum.WalkSpeed=previousSpeed;previousSpeed=nil
   end
  end
- status.Text=enabled.radar and ("Possiveis cartas: "..count.." | Mais proxima: "..(distance<math.huge and math.floor(distance).." studs" or "nenhuma")) or "Radar desativado"
+ status.Text=enabled.radar and ("Possiveis packs: "..count.." | Mais proxima: "..(distance<math.huge and math.floor(distance).." studs" or "nenhuma")) or "Radar desativado"
 end)
