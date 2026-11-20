@@ -1,4 +1,4 @@
--- Steal An Card mobile hub v5.0
+-- Steal An Card mobile hub v6.0
 -- ESP/radar experimental, no auto-collection or server bypass.
 -- Steal a Card Mobile Hub v3.0 - experimental client tools
 -- No Auto Steal or Auto Farm; object detection is heuristic.
@@ -14,7 +14,7 @@ gui.Name="SACMobileHubV3"
 gui.ResetOnSpawn=false
 gui.Parent=pg
 local frame=Instance.new("Frame",gui)
-frame.Size=UDim2.fromOffset(285,365)
+frame.Size=UDim2.fromOffset(285,410)
 frame.Position=UDim2.new(0,15,.24,0)
 frame.BackgroundColor3=Color3.fromRGB(24,27,38)
 frame.Active=true
@@ -25,11 +25,11 @@ local function make(kind,parent,props)
  x.Parent=parent
  return x
 end
-make("TextLabel",frame,{Text="STEAL AN CARD | HUB V5",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
+make("TextLabel",frame,{Text="STEAL AN CARD | HUB V6",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
 local mini=make("TextButton",frame,{Text="-",Size=UDim2.fromOffset(35,35),Position=UDim2.new(1,-40,0,5),BackgroundColor3=Color3.fromRGB(55,60,78),TextColor3=Color3.new(1,1,1),TextSize=20})
 local content=make("Frame",frame,{Size=UDim2.new(1,-20,1,-52),Position=UDim2.fromOffset(10,47),BackgroundTransparency=1})
 make("UIListLayout",content,{Padding=UDim.new(0,7),SortOrder=Enum.SortOrder.LayoutOrder})
-local enabled={players=false,cards=false,speed=false,radar=false,zones=false}
+local enabled={players=false,cards=false,speed=false,radar=false,zones=false,auto=false}
 local function toggle(name,key)
  local b=make("TextButton",content,{Text=name.." OFF",Size=UDim2.new(1,0,0,37),BackgroundColor3=Color3.fromRGB(53,58,76),TextColor3=Color3.new(1,1,1),TextSize=13,Font=Enum.Font.GothamMedium})
  Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
@@ -44,6 +44,7 @@ toggle("ESP Packs (experimental)","cards")
 toggle("Speed local","speed")
 toggle("Radar de packs","radar")
 toggle("ESP Safe Zone (experimental)","zones")
+toggle("Auto Steal (experimental)","auto")
 local speed=24
 local speedRow=make("Frame",content,{Size=UDim2.new(1,0,0,35),BackgroundTransparency=1})
 local minus=make("TextButton",speedRow,{Text="-",Size=UDim2.fromOffset(43,35),TextSize=20})
@@ -56,7 +57,7 @@ local minimized=false
 mini.MouseButton1Click:Connect(function()
  minimized=not minimized
  content.Visible=not minimized
- frame.Size=UDim2.fromOffset(285,minimized and 45 or 365)
+ frame.Size=UDim2.fromOffset(285,minimized and 45 or 410)
  mini.Text=minimized and "+" or "-"
 end)
 local drag=false
@@ -92,6 +93,68 @@ local function isCard(x)
  return n:find("pack",1,true) or n:find("booster",1,true) or n:find("card",1,true) or n:find("carta",1,true) or n:find("deck",1,true) or n:find("baralho",1,true)
 end
 local previousSpeed
+
+-- Experimental client-only collection routine. Server may reject movement or prompt activation.
+local autoBusy=false
+local lastAttempt=0
+local function findPackPrompt(root)
+ local best,bestScore=nil,-math.huge
+ for _,prompt in ipairs(workspace:GetDescendants()) do
+  if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+   local parent=prompt.Parent
+   local ancestor=parent
+   local matches=false
+   local rarity=0
+   for _=1,4 do
+    if not ancestor or ancestor==workspace then break end
+    local name=ancestor.Name:lower()
+    if name:find("pack",1,true) or name:find("card",1,true) or name:find("booster",1,true) then matches=true end
+    local attr=ancestor:GetAttribute("Rarity") or ancestor:GetAttribute("Tier")
+    local word=tostring(attr or name):lower()
+    local ranks={common=1,uncommon=2,rare=3,epic=4,legendary=5,mythic=6,secret=7,divine=8}
+    for label,rank in pairs(ranks) do if word:find(label,1,true) then rarity=math.max(rarity,rank) end end
+    ancestor=ancestor.Parent
+   end
+   local part=parent:IsA("BasePart") and parent or parent:IsA("Attachment") and parent.Parent
+   if matches and part and part:IsA("BasePart") then
+    local dist=(root.Position-part.Position).Magnitude
+    local score=rarity*100000-dist
+    if score>bestScore then bestScore=score;best={prompt=prompt,part=part} end
+   end
+  end
+ end
+ return best
+end
+local function autoAttempt()
+ if autoBusy or not enabled.auto or os.clock()-lastAttempt<8 then return end
+ lastAttempt=os.clock()
+ local char=me.Character
+ local root=char and char:FindFirstChild("HumanoidRootPart")
+ if not root then return end
+ local target=findPackPrompt(root)
+ if not target then status.Text="Auto: nenhum prompt de pack identificado";return end
+ autoBusy=true
+ task.spawn(function()
+  local original=root.CFrame
+  local ok,err=pcall(function()
+   if not enabled.auto then return end
+   root.CFrame=target.part.CFrame*CFrame.new(0,0,3)
+   task.wait(.45)
+   if not enabled.auto then return end
+   if type(fireproximityprompt)=="function" then
+    fireproximityprompt(target.prompt)
+   else
+    status.Text="Auto: executor sem suporte a prompt; segure Pegar manualmente"
+    task.wait(math.max(1,target.prompt.HoldDuration+0.5))
+   end
+   task.wait(.6)
+   if enabled.auto and root.Parent then root.CFrame=original end
+  end)
+  if not ok then status.Text="Auto: falha na tentativa" end
+  autoBusy=false
+ end)
+end
+
 local elapsed=0
 local conn
 conn=RunService.Heartbeat:Connect(function(dt)
@@ -103,6 +166,7 @@ conn=RunService.Heartbeat:Connect(function(dt)
  elapsed=elapsed+dt
  if elapsed<.75 then return end
  elapsed=0
+ if enabled.auto then autoAttempt() end
  local keep={}
  if enabled.players then
   for _,p in ipairs(Players:GetPlayers()) do
