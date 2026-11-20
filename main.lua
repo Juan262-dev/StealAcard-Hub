@@ -1,225 +1,96 @@
--- Steal An Card mobile hub v6.0
--- ESP/radar experimental, no auto-collection or server bypass.
--- Steal a Card Mobile Hub v3.0 - experimental client tools
--- No Auto Steal or Auto Farm; object detection is heuristic.
+-- Caxias Hub v1.0 | client-side utility panel
 local Players=game:GetService("Players")
 local RunService=game:GetService("RunService")
 local UIS=game:GetService("UserInputService")
-local me=Players.LocalPlayer
-local pg=me:WaitForChild("PlayerGui")
-local old=pg:FindFirstChild("SACMobileHubV3")
+local player=Players.LocalPlayer
+local pg=player:WaitForChild("PlayerGui")
+local old=pg:FindFirstChild("CaxiasHub")
 if old then old:Destroy() end
 local gui=Instance.new("ScreenGui")
-gui.Name="SACMobileHubV3"
-gui.ResetOnSpawn=false
+gui.Name="CaxiasHub";gui.ResetOnSpawn=false
 gui.Parent=pg
-local frame=Instance.new("Frame",gui)
-frame.Size=UDim2.fromOffset(285,410)
-frame.Position=UDim2.new(0,15,.24,0)
-frame.BackgroundColor3=Color3.fromRGB(24,27,38)
-frame.Active=true
-Instance.new("UICorner",frame).CornerRadius=UDim.new(0,12)
-local function make(kind,parent,props)
- local x=Instance.new(kind)
- for k,v in pairs(props) do x[k]=v end
- x.Parent=parent
- return x
+local function new(class,parent,props)
+ local o=Instance.new(class)
+ for k,v in pairs(props) do o[k]=v end
+ o.Parent=parent
+ return o
 end
-make("TextLabel",frame,{Text="STEAL AN CARD | HUB V6",Size=UDim2.new(1,-50,0,44),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13})
-local mini=make("TextButton",frame,{Text="-",Size=UDim2.fromOffset(35,35),Position=UDim2.new(1,-40,0,5),BackgroundColor3=Color3.fromRGB(55,60,78),TextColor3=Color3.new(1,1,1),TextSize=20})
-local content=make("Frame",frame,{Size=UDim2.new(1,-20,1,-52),Position=UDim2.fromOffset(10,47),BackgroundTransparency=1})
-make("UIListLayout",content,{Padding=UDim.new(0,7),SortOrder=Enum.SortOrder.LayoutOrder})
-local enabled={players=false,cards=false,speed=false,radar=false,zones=false,auto=false}
-local function toggle(name,key)
- local b=make("TextButton",content,{Text=name.." OFF",Size=UDim2.new(1,0,0,37),BackgroundColor3=Color3.fromRGB(53,58,76),TextColor3=Color3.new(1,1,1),TextSize=13,Font=Enum.Font.GothamMedium})
- Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
- b.MouseButton1Click:Connect(function()
-  enabled[key]=not enabled[key]
-  b.Text=name..(enabled[key] and " ON" or " OFF")
-  b.BackgroundColor3=enabled[key] and Color3.fromRGB(34,112,89) or Color3.fromRGB(53,58,76)
- end)
+local main=new("Frame",gui,{Size=UDim2.fromOffset(285,315),Position=UDim2.new(.5,-142,.25,0),BackgroundColor3=Color3.fromRGB(20,26,38),Active=true})
+new("UICorner",main,{CornerRadius=UDim.new(0,12)})
+local header=new("TextLabel",main,{Size=UDim2.new(1,-50,0,45),Position=UDim2.fromOffset(10,0),BackgroundTransparency=1,Text="CAXIAS HUB v1.0",TextColor3=Color3.new(1,1,1),TextSize=16,Font=Enum.Font.GothamBold})
+local min=new("TextButton",main,{Size=UDim2.fromOffset(35,32),Position=UDim2.new(1,-40,0,6),Text="-",TextSize=22,TextColor3=Color3.new(1,1,1),BackgroundColor3=Color3.fromRGB(45,55,75)})
+local content=new("Frame",main,{Size=UDim2.new(1,-20,1,-55),Position=UDim2.fromOffset(10,50),BackgroundTransparency=1})
+new("UIListLayout",content,{Padding=UDim.new(0,8)})
+local options={players=true,timer=true,coords=false,zoom=false}
+local function toggle(label,key)
+ local b=new("TextButton",content,{Size=UDim2.new(1,0,0,38),TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamMedium,TextSize=13})
+ new("UICorner",b,{CornerRadius=UDim.new(0,8)})
+ local function refresh()
+  b.Text=label.."  "..(options[key] and "ON" or "OFF")
+  b.BackgroundColor3=options[key] and Color3.fromRGB(32,105,78) or Color3.fromRGB(43,53,72)
+ end
+ b.MouseButton1Click:Connect(function() options[key]=not options[key];refresh() end)
+ refresh()
 end
-toggle("ESP Jogadores","players")
-toggle("ESP Packs (experimental)","cards")
-toggle("Speed local","speed")
-toggle("Radar de packs","radar")
-toggle("ESP Safe Zone (experimental)","zones")
-toggle("Auto Steal (experimental)","auto")
-local speed=24
-local speedRow=make("Frame",content,{Size=UDim2.new(1,0,0,35),BackgroundTransparency=1})
-local minus=make("TextButton",speedRow,{Text="-",Size=UDim2.fromOffset(43,35),TextSize=20})
-local plus=make("TextButton",speedRow,{Text="+",Position=UDim2.new(1,-43,0,0),Size=UDim2.fromOffset(43,35),TextSize=20})
-local speedText=make("TextLabel",speedRow,{Text="Speed: 24",Position=UDim2.fromOffset(48,0),Size=UDim2.new(1,-96,1,0),BackgroundTransparency=1,TextColor3=Color3.new(1,1,1),TextSize=14})
-minus.MouseButton1Click:Connect(function() speed=math.max(16,speed-4);speedText.Text="Speed: "..speed end)
-plus.MouseButton1Click:Connect(function() speed=math.min(40,speed+4);speedText.Text="Speed: "..speed end)
-local status=make("TextLabel",content,{Text="Radar desativado",Size=UDim2.new(1,0,0,36),BackgroundTransparency=1,TextColor3=Color3.fromRGB(190,200,220),TextSize=11,TextWrapped=true})
+toggle("Jogadores","players")
+toggle("Tempo de sessao","timer")
+toggle("Coordenadas","coords")
+toggle("Zoom da camera","zoom")
+local info=new("TextLabel",content,{Size=UDim2.new(1,0,0,60),BackgroundTransparency=1,TextColor3=Color3.fromRGB(210,220,235),TextSize=12,TextWrapped=true,Text="Carregando..."})
+local startTime=os.clock()
+local camera=workspace.CurrentCamera
+local originalFov=camera and camera.FieldOfView or 70
 local minimized=false
-mini.MouseButton1Click:Connect(function()
+min.MouseButton1Click:Connect(function()
  minimized=not minimized
  content.Visible=not minimized
- frame.Size=UDim2.fromOffset(285,minimized and 45 or 410)
- mini.Text=minimized and "+" or "-"
+ main.Size=UDim2.fromOffset(285,minimized and 45 or 315)
+ min.Text=minimized and "+" or "-"
 end)
-local drag=false
-local start,original
-frame.InputBegan:Connect(function(input)
+local dragging=false
+local dragInput,dragStart,startPos
+header.InputBegan:Connect(function(input)
  if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
-  if input.Position.Y<frame.AbsolutePosition.Y+43 and input.Position.X<frame.AbsolutePosition.X+240 then
-   drag=true;start=input.Position;original=frame.Position
-  end
+  dragging=true;dragInput=input;dragStart=input.Position;startPos=main.Position
  end
 end)
+header.InputChanged:Connect(function(input)
+ if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseMovement then dragInput=input end
+end)
 UIS.InputChanged:Connect(function(input)
- if drag and (input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseMovement) then
-  local d=input.Position-start
-  frame.Position=UDim2.new(original.X.Scale,original.X.Offset+d.X,original.Y.Scale,original.Y.Offset+d.Y)
+ if dragging and input==dragInput then
+  local delta=input.Position-dragStart
+  main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
  end
 end)
 UIS.InputEnded:Connect(function(input)
- if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end
+ if input==dragInput or (dragging and input.UserInputType==Enum.UserInputType.MouseButton1) then dragging=false end
 end)
-local marks={}
-local function mark(key,obj,color)
- if marks[key] and marks[key].Parent then return end
- local h=Instance.new("Highlight")
- h.Name="SAC_ClientHighlight";h.Adornee=obj;h.FillColor=color;h.OutlineColor=color
- h.FillTransparency=.75;h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;h.Parent=gui
- marks[key]=h
-end
-local function isCard(x)
- if not (x:IsA("Model") or x:IsA("BasePart")) then return false end
- if x:GetAttribute("IsCard")==true then return true end
- local n=x.Name:lower()
- return n:find("pack",1,true) or n:find("booster",1,true) or n:find("card",1,true) or n:find("carta",1,true) or n:find("deck",1,true) or n:find("baralho",1,true)
-end
-local previousSpeed
-
--- Experimental client-only collection routine. Server may reject movement or prompt activation.
-local autoBusy=false
-local lastAttempt=0
-local function findPackPrompt(root)
- local best,bestScore=nil,-math.huge
- for _,prompt in ipairs(workspace:GetDescendants()) do
-  if prompt:IsA("ProximityPrompt") and prompt.Enabled then
-   local parent=prompt.Parent
-   local ancestor=parent
-   local matches=false
-   local rarity=0
-   for _=1,4 do
-    if not ancestor or ancestor==workspace then break end
-    local name=ancestor.Name:lower()
-    if name:find("pack",1,true) or name:find("card",1,true) or name:find("booster",1,true) then matches=true end
-    local attr=ancestor:GetAttribute("Rarity") or ancestor:GetAttribute("Tier")
-    local word=tostring(attr or name):lower()
-    local ranks={common=1,uncommon=2,rare=3,epic=4,legendary=5,mythic=6,secret=7,divine=8}
-    for label,rank in pairs(ranks) do if word:find(label,1,true) then rarity=math.max(rarity,rank) end end
-    ancestor=ancestor.Parent
-   end
-   local part=parent:IsA("BasePart") and parent or parent:IsA("Attachment") and parent.Parent
-   if matches and part and part:IsA("BasePart") then
-    local dist=(root.Position-part.Position).Magnitude
-    local score=rarity*100000-dist
-    if score>bestScore then bestScore=score;best={prompt=prompt,part=part} end
-   end
-  end
- end
- return best
-end
-local function autoAttempt()
- if autoBusy or not enabled.auto or os.clock()-lastAttempt<8 then return end
- lastAttempt=os.clock()
- local char=me.Character
- local root=char and char:FindFirstChild("HumanoidRootPart")
- if not root then return end
- local target=findPackPrompt(root)
- if not target then status.Text="Auto: nenhum prompt de pack identificado";return end
- autoBusy=true
- task.spawn(function()
-  local original=root.CFrame
-  local ok,err=pcall(function()
-   if not enabled.auto then return end
-   root.CFrame=target.part.CFrame*CFrame.new(0,0,3)
-   task.wait(.45)
-   if not enabled.auto then return end
-   if type(fireproximityprompt)=="function" then
-    fireproximityprompt(target.prompt)
-   else
-    status.Text="Auto: executor sem suporte a prompt; segure Pegar manualmente"
-    task.wait(math.max(1,target.prompt.HoldDuration+0.5))
-   end
-   task.wait(.6)
-   if enabled.auto and root.Parent then root.CFrame=original end
-  end)
-  if not ok then status.Text="Auto: falha na tentativa" end
-  autoBusy=false
- end)
-end
-
 local elapsed=0
 local conn
 conn=RunService.Heartbeat:Connect(function(dt)
  if not gui.Parent then
-  conn:Disconnect()
-  for _,h in pairs(marks) do h:Destroy() end
-  return
+  if workspace.CurrentCamera then workspace.CurrentCamera.FieldOfView=originalFov end
+  conn:Disconnect();return
  end
  elapsed=elapsed+dt
- if elapsed<.75 then return end
+ if elapsed<.5 then return end
  elapsed=0
- if enabled.auto then autoAttempt() end
- local keep={}
- if enabled.players then
-  for _,p in ipairs(Players:GetPlayers()) do
-   if p~=me and p.Character then
-    local key="player_"..p.UserId
-    keep[key]=true;mark(key,p.Character,Color3.fromRGB(255,90,90))
-   end
+ local lines={}
+ if options.players then table.insert(lines,"Jogadores: "..#Players:GetPlayers()) end
+ if options.timer then
+  local seconds=math.floor(os.clock()-startTime)
+  table.insert(lines,string.format("Sessao: %02d:%02d",math.floor(seconds/60),seconds%60))
+ end
+ if options.coords then
+  local char=player.Character
+  local root=char and char:FindFirstChild("HumanoidRootPart")
+  if root then
+   local p=root.Position
+   table.insert(lines,string.format("XYZ: %.0f, %.0f, %.0f",p.X,p.Y,p.Z))
   end
  end
- local count=0
- local distance=math.huge
- local zoneCount=0
- local zoneDistance=math.huge
- if enabled.cards or enabled.radar then
-  local root=me.Character and me.Character:FindFirstChild("HumanoidRootPart")
-  for _,obj in ipairs(workspace:GetDescendants()) do
-   if isCard(obj) and not (me.Character and obj:IsDescendantOf(me.Character)) then
-    count=count+1
-    if enabled.cards then
-     local key="card_"..tostring(obj)
-     keep[key]=true;mark(key,obj,Color3.fromRGB(255,210,65))
-    end
-    local part=obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
-    if root and part then distance=math.min(distance,(root.Position-part.Position).Magnitude) end
-   end
-  end
- end
- if enabled.zones then
-  local root=me.Character and me.Character:FindFirstChild("HumanoidRootPart")
-  for _,obj in ipairs(workspace:GetDescendants()) do
-   if (obj:IsA("BasePart") or obj:IsA("Model")) and
-     (obj.Name:lower():find("safe",1,true) or obj.Name:lower():find("zone",1,true)) then
-    zoneCount=zoneCount+1
-    local key="zone_"..tostring(obj)
-    keep[key]=true;mark(key,obj,Color3.fromRGB(70,230,120))
-    local part=obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
-    if root and part then zoneDistance=math.min(zoneDistance,(root.Position-part.Position).Magnitude) end
-   end
-  end
- end
- for k,h in pairs(marks) do
-  if not keep[k] then h:Destroy();marks[k]=nil end
- end
- local hum=me.Character and me.Character:FindFirstChildOfClass("Humanoid")
- if hum then
-  if enabled.speed then
-   if previousSpeed==nil then previousSpeed=hum.WalkSpeed end
-   hum.WalkSpeed=speed
-  elseif previousSpeed~=nil then
-   hum.WalkSpeed=previousSpeed;previousSpeed=nil
-  end
- end
- local packInfo=enabled.radar and ("Packs: "..count.." | "..(distance<math.huge and math.floor(distance).." studs" or "?")) or "Packs: OFF"
- local zoneInfo=enabled.zones and (" | Zones: "..zoneCount.." | "..(zoneDistance<math.huge and math.floor(zoneDistance).." studs" or "?")) or ""
- status.Text=packInfo..zoneInfo
+ local cam=workspace.CurrentCamera
+ if cam then cam.FieldOfView=options.zoom and 50 or originalFov end
+ info.Text=#lines>0 and table.concat(lines," | ") or "Ative uma funcao"
 end)
